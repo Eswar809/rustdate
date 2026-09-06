@@ -2,15 +2,31 @@
 
 **A fast, dateutil-compatible date/time parser for Python, written in Rust** (PyO3).
 Drop-in replacement for `dateutil.parser.parse` with the same kwargs, the same quirks,
-and a fraction of the time — plus features dateutil's parser doesn't have.
+a fraction of the time — plus features dateutil's parser doesn't have.
 
-```
-dateutil.parse    ~65 µs/string
-rustdate.parse     ~7 µs/string   (~9x)
-rustdate.parse_many ~1.1 µs/string (~57x, rayon-parallel, GIL released)
-```
-(Hot loops should use `parse_many`. Numbers from the 10k benchmark on an i5-12500H;
-both parsers scale together, so speedups are stable across runs.)
+## Benchmarks — Python (dateutil) vs Rust (rustdate)
+
+| Case | dateutil.parse | rustdate.parse | speedup |
+|---|---:|---:|---:|
+| ISO 8601 + `Z` (`2026-09-06T14:23:45Z`) | 53.4 µs | 4.31 µs | **12x** |
+| ISO + numeric offset (`...+05:30`) | 59.4 µs | 4.57 µs | **13x** |
+| Human (`Sep 6 2026 2:23 PM`) | 71.2 µs | 4.06 µs | **18x** |
+| US slash (`06/09/2026 14:23:45`) | 45.9 µs | 4.14 µs | **11x** |
+| HTTP / RFC 7231 (`Sun, 06 Sep 2026 ... GMT`) | 88.9 µs | 5.22 µs | **17x** |
+| Time-only (`14:23:45`) | 21.3 µs | 2.84 µs | **8x** |
+| Fuzzy text (`I met him on Sep 6 2026 ...`) | 95.7 µs | 7.54 µs | **13x** |
+| **Mixed 10k workload** (5 hot formats) | **66.1 µs** | **4.55 µs** | **15x** |
+| **Mixed 10k, parallel batch** (`parse_many`) | 66.1 µs | **0.66 µs** | **100x** |
+
+<sub>Measured 2026-09-06 · i5-12500H · Windows 11 · CPython 3.12 · dateutil 2.9.0.post0 vs rustdate 0.2.0 ·
+20,000 parses per case, best of 7 runs. Reproduce with `python bench.py`.</sub>
+
+**Why the gap:** dateutil tokenizes with regexes and resolves the string through hundreds of
+try/except format attempts in pure Python. rustdate hand-parses bytes in Rust with zero
+allocations on the hot path, releases the GIL for batch parsing across all cores, and caches
+timezone objects. Single-call numbers include ~2-3 µs of pyo3 kwargs-dispatch overhead —
+hot loops should use `parse_many`, which amortizes it to ~0.66 µs/string (**100x faster
+than dateutil, ~1.5M strings/sec on a laptop CPU**).
 
 ## Install / build
 
