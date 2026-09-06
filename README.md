@@ -19,7 +19,9 @@ a fraction of the time — plus features dateutil's parser doesn't have.
 | **Mixed 10k, parallel batch** (`parse_many`) | 66.1 µs | **0.66 µs** | **100x** |
 
 <sub>Measured 2026-09-06 · i5-12500H · Windows 11 · CPython 3.12 · dateutil 2.9.0.post0 vs rustdate 0.2.0 ·
-20,000 parses per case, best of 7 runs. Reproduce with `python bench.py`.</sub>
+20,000 parses per case, best of 7 runs. Reproduce with `python bench.py`, plot with `python plot_bench.py`.</sub>
+
+![dateutil (Python) vs rustdate (Rust) benchmark](benchmark.png)
 
 **Why the gap:** dateutil tokenizes with regexes and resolves the string through hundreds of
 try/except format attempts in pure Python. rustdate hand-parses bytes in Rust with zero
