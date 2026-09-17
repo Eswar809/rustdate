@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  differential-fuzz:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build PyO3 extension (release)
+        run: |
+          pip install maturin
+          maturin build --release
+          pip install --force-reinstall --no-deps target/wheels/rustdate-*.whl
+
+      - name: Install dateutil (differential baseline)
+        run: pip install python-dateutil
+
+      - name: 5000-case differential fuzz vs dateutil
+        run: python fuzz.py
